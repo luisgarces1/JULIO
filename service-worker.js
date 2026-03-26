@@ -6,7 +6,7 @@ const ASSETS = [
   './main.js',
   './voice.js',
   './youtube.js',
-  './avatar.png'
+  './IMG_8956.JPG'
 ];
 
 self.addEventListener('install', event => {

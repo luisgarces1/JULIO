@@ -11,21 +11,21 @@
   "description": "Tu asistente musical inteligente con control por voz manos libres.",
   "icons": [
     {
-      "src": "avatar.png",
+      "src": "IMG_8956.JPG",
       "sizes": "150x150",
-      "type": "image/png",
+      "type": "image/jpeg",
       "purpose": "maskable"
     },
     {
-      "src": "avatar.png",
+      "src": "IMG_8956.JPG",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/jpeg",
       "purpose": "any"
     },
     {
-      "src": "avatar.png",
+      "src": "IMG_8956.JPG",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/jpeg",
       "purpose": "any"
     }
   ]

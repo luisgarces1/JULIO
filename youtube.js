@@ -123,7 +123,7 @@ export class YouTubeManager {
         title: title || 'JULIO AI',
         artist: artist || 'Asistente',
         album: 'JULIO Online',
-        artwork: [{ src: image || 'avatar.png', sizes: '512x512', type: 'image/png' }]
+        artwork: [{ src: image || 'IMG_8956.JPG', sizes: '512x512', type: 'image/jpeg' }]
       });
     }
   }
