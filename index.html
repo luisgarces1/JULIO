@@ -71,6 +71,15 @@
         <div id="transcript-box" class="transcript-view">ESCUCHANDO...</div>
         </div>
 
+    <!-- PWA Installation Modal -->
+    <div id="install-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); backdrop-filter:blur(10px); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:#1a1e3a; padding:30px; border-radius:25px; border:1px solid #00e0ff; max-width:90%; text-align:center; color:white; box-shadow:0 0 30px rgba(0,224,255,0.2);">
+            <h2 style="margin-bottom:15px; color:#00e0ff;">Instalar JULIO para Móvil</h2>
+            <p id="install-instructions" style="margin-bottom:20px; font-size:14px; line-height:1.5;">Para instalar esta App (APK/PWA):</p>
+            <button id="close-modal" style="background:#00e0ff; color:#0b0d17; border:none; padding:10px 25px; border-radius:15px; font-weight:700; cursor:pointer;">Entendido</button>
+        </div>
+    </div>
+
     <!-- YouTube IFrame API -->
     <script src="https://www.youtube.com/iframe_api"></script>
     <script type="module" src="main.js"></script>

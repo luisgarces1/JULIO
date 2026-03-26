@@ -1,9 +1,9 @@
 {
   "name": "JULIO - AI Music Assistant",
   "short_name": "JULIO",
-  "id": "/index.html",
-  "start_url": "./index.html",
-  "scope": "./",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0b0d17",
   "theme_color": "#00e0ff",

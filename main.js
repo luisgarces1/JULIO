@@ -99,21 +99,27 @@ class JulioApp {
         });
 
         if (installBtn) {
-            installBtn.addEventListener('click', async () => {
+            const modal = document.getElementById('install-modal');
+            const inst = document.getElementById('install-instructions');
+            const close = document.getElementById('close-modal');
+
+            if (close) close.onclick = () => { modal.style.display = 'none'; };
+
+            installBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
                 if (deferredPrompt) {
                     deferredPrompt.prompt();
                     const { outcome } = await deferredPrompt.userChoice;
-                    console.log(`PWA Install Outcome: ${outcome}`);
                     deferredPrompt = null;
                     if (outcome === 'accepted') installBtn.style.display = 'none';
                 } else {
-                    // Fallback instructions for iOS or non-prompting browsers
                     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
                     if (isIOS) {
-                        alert("Para instalar en iPhone: Pulsa el botón de Compartir y luego 'Añadir a la pantalla de inicio'.");
+                        inst.innerText = "Para instalar en iPhone: Pulsa el botón 'Compartir' de Safari y luego selecciona 'Añadir a la pantalla de inicio'.";
                     } else {
-                        alert("Para instalar esta App (PWA): Abre el menú del navegador (los 3 puntos) y pulsa 'Instalar aplicación' o 'Añadir a la pantalla de inicio'.");
+                        inst.innerText = "Para instalar esta App en Android: Pulsa los 3 puntos del navegador y elige 'Instalar aplicación' o 'Añadir a la pantalla de inicio'.";
                     }
+                    modal.style.display = 'flex';
                 }
             });
         }
@@ -124,10 +130,11 @@ class JulioApp {
   }
 
   setupEventListeners() {
-    this.micBtn.onclick = () => this.toggleVoice();
-    this.playPauseBtn.onclick = () => this.togglePlayback();
-    document.getElementById('next-btn').onclick = () => this.handleSkip();
-    document.getElementById('prev-btn').onclick = () => {
+    this.micBtn.onclick = (e) => { e.preventDefault(); this.toggleVoice(); };
+    this.playPauseBtn.onclick = (e) => { e.preventDefault(); this.togglePlayback(); };
+    document.getElementById('next-btn').onclick = (e) => { e.preventDefault(); this.handleSkip(); };
+    document.getElementById('prev-btn').onclick = (e) => {
+        e.preventDefault();
         this.youtube.player?.seekTo(0);
         this.youtube.player?.playVideo();
     };
@@ -151,8 +158,14 @@ class JulioApp {
         const tBox = document.getElementById('transcript-box');
         if (tBox) tBox.innerText = 'ESCUCHANDO...';
 
-        const stream = await this.voice.getAudioStream();
-        this.startVisualizer(stream);
+        // NOTE: On some mobile devices, getUserMedia for visualizer conflicts with SpeechRecognition
+        // We only start the visualizer if we're on a large enough screen
+        if (window.innerWidth > 600) {
+            const stream = await this.voice.getAudioStream();
+            this.startVisualizer(stream);
+        } else {
+            console.log("Visualizer skipped to save mic for SpeechRecognition on mobile.");
+        }
 
         let clearTimer;
         

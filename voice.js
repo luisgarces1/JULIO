@@ -16,13 +16,16 @@ export class VoiceAssistant {
   initRecognition() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
+      this.unsupported = true;
       console.error("Speech Recognition not supported in this browser.");
       return;
     }
 
     this.recognition = new SpeechRecognition();
     this.recognition.lang = 'es-ES';
-    this.recognition.continuous = true;
+    // continuous=true is very buggy on mobile Chrome. 
+    // We use false and let our onend restart logic handle the 'perpetual' listening.
+    this.recognition.continuous = false; 
     this.recognition.interimResults = true;
   }
 
