@@ -54,6 +54,15 @@ class JulioApp {
         tBox.innerText = 'Esperando voz...';
         document.body.appendChild(tBox);
     }
+
+    // Volume Slider
+    this.volumeSlider = document.getElementById('volume-slider');
+    if (this.volumeSlider) {
+        this.volumeSlider.addEventListener('input', (e) => {
+            const vol = e.target.value;
+            this.youtube.player?.setVolume(vol);
+        });
+    }
   }
 
   async init() {
@@ -183,8 +192,33 @@ class JulioApp {
     const nextWords = /siguiente|salta|otra|próxima|proxima|adelanta|adelante|cambia|cambiar/;
     const playWords = /reanuda|continua|continúa|reproduce|dale|play|seguir|sigue/;
     const repeatWords = /repite|repetir|otra vez|de nuevo|inicio/;
+    const volumeWords = /volumen|sonido|audio/;
 
-    // 1. REPEAT Command
+    // 1. VOLUME Commands
+    if (cmd.match(volumeWords)) {
+        let currentVol = this.youtube.player?.getVolume() || 100;
+        
+        if (cmd.includes('sube') || cmd.includes('más') || cmd.includes('mas')) {
+            currentVol = Math.min(100, currentVol + 20);
+            await this.voice.speak("Subiendo volumen.");
+        } else if (cmd.includes('baja') || cmd.includes('menos')) {
+            currentVol = Math.max(0, currentVol - 20);
+            await this.voice.speak("Bajando volumen.");
+        } else if (cmd.match(/\d+/)) {
+            const num = parseInt(cmd.match(/\d+/)[0]);
+            currentVol = Math.min(100, Math.max(0, num));
+            await this.voice.speak(`Volumen al ${currentVol}%`);
+        } else if (cmd.includes('silencio') || cmd.includes('mudo')) {
+            currentVol = 0;
+            await this.voice.speak("Puesto en silencio.");
+        }
+
+        this.youtube.player?.setVolume(currentVol);
+        if (this.volumeSlider) this.volumeSlider.value = currentVol;
+        return;
+    }
+
+    // 2. REPEAT Command
     if (cmd.match(repeatWords)) {
         this.statusText.innerText = 'REPITIE...';
         this.youtube.player?.seekTo(0);
