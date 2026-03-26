@@ -77,6 +77,24 @@ class JulioApp {
             if (this.lastArtist) setTimeout(() => this.handleSkip(), 2000);
         });
 
+        this.youtube.onEndCallback = () => {
+             console.log("Track ended, advancing...");
+             this.handleSkip();
+        };
+
+        // Visibility Heartbeat: Attempts to resume if system pauses in background
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                console.log("App moved to background, protecting playback...");
+                // On mobile, if we are playing manually, we want to stay playing
+                setTimeout(() => {
+                    if (this.youtube.isPlayingManually && this.youtube.player?.getPlayerState() !== YT.PlayerState.PLAYING) {
+                        this.youtube.resume();
+                    }
+                }, 1000);
+            }
+        });
+
         // PWA Installation & "APK" Request
         const installBtn = document.getElementById('install-btn');
         let deferredPrompt;
@@ -329,11 +347,17 @@ class JulioApp {
   }
 
   async talk(text) {
-    // Duck volume while speaking
-    const oldVol = this.youtube.player?.getVolume() || 100;
-    this.youtube.player?.setVolume(20);
+    // Duck volume while speaking if music is playing
+    const isPlaying = this.youtube.player?.getPlayerState() === YT.PlayerState.PLAYING;
+    if (isPlaying) this.youtube.player?.setVolume(15);
+    
     await this.voice.speak(text);
-    this.youtube.player?.setVolume(oldVol);
+    
+    if (isPlaying) {
+        // Ensure we restore volume and stay playing
+        this.youtube.player?.setVolume(100);
+        this.youtube.player?.playVideo();
+    }
   }
 
   async handleSkip() {
@@ -358,6 +382,8 @@ class JulioApp {
     this.artistName.innerText = this.lastArtist;
     
     this.youtube.play(track.id);
+    this.youtube.updateMetadata(this.currentSongTitle, this.lastArtist, track.thumbnail);
+
     this.playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
     this.statusText.innerText = 'REPRODUCIENDO';
     this.talk(`Poniendo ${this.currentSongTitle}`);
