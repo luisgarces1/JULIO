@@ -110,9 +110,11 @@ body {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  object-fit: contain;
+  object-fit: cover;
+  object-position: center;
   transition: transform 0.5s ease;
   filter: drop-shadow(0 0 10px rgba(0,0,0,0.5));
+  display: block;
 }
 
 .pulse-ring {

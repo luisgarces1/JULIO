@@ -12,12 +12,6 @@
   "icons": [
     {
       "src": "IMG_8956.JPG",
-      "sizes": "150x150",
-      "type": "image/jpeg",
-      "purpose": "maskable"
-    },
-    {
-      "src": "IMG_8956.JPG",
       "sizes": "192x192",
       "type": "image/jpeg",
       "purpose": "any"
@@ -26,7 +20,7 @@
       "src": "IMG_8956.JPG",
       "sizes": "512x512",
       "type": "image/jpeg",
-      "purpose": "any"
+      "purpose": "any maskable"
     }
   ]
 }
