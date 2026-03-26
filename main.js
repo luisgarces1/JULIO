@@ -77,32 +77,46 @@ class JulioApp {
             if (this.lastArtist) setTimeout(() => this.handleSkip(), 2000);
         });
 
-        // Install Button PWA
-    const installBtn = document.getElementById('install-btn');
-    let deferredPrompt;
+        // PWA Installation & "APK" Request
+        const installBtn = document.getElementById('install-btn');
+        let deferredPrompt;
 
-    window.addEventListener('beforeinstallprompt', (e) => {
-        // Prevent Chrome 67 and earlier from automatically showing the prompt
-        e.preventDefault();
-        // Stash the event so it can be triggered later.
-        deferredPrompt = e;
-        // Update UI notify the user they can install the PWA
-        if (installBtn) installBtn.style.display = 'block';
-    });
+        // Check if already installed
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        
+        if (!isStandalone && installBtn) {
+            installBtn.style.display = 'block';
+            installBtn.innerHTML = '<i class="fas fa-mobile-alt"></i> DESCARGAR APP (APK)';
+        }
 
-    if (installBtn) {
-        installBtn.addEventListener('click', async () => {
-            if (!deferredPrompt) return;
-            // Show the install prompt
-            deferredPrompt.prompt();
-            // Wait for the user to respond to the prompt
-            const { outcome } = await deferredPrompt.userChoice;
-            console.log(`User response to the install prompt: ${outcome}`);
-            // We've used the prompt, and can't use it again, throw it away
-            deferredPrompt = null;
-            installBtn.style.display = 'none';
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            if (installBtn) {
+                installBtn.style.display = 'block';
+                installBtn.innerHTML = '<i class="fas fa-download"></i> (APK) INSTALAR AHORA';
+            }
         });
-    }
+
+        if (installBtn) {
+            installBtn.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`PWA Install Outcome: ${outcome}`);
+                    deferredPrompt = null;
+                    if (outcome === 'accepted') installBtn.style.display = 'none';
+                } else {
+                    // Fallback instructions for iOS or non-prompting browsers
+                    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                    if (isIOS) {
+                        alert("Para instalar en iPhone: Pulsa el botón de Compartir y luego 'Añadir a la pantalla de inicio'.");
+                    } else {
+                        alert("Para instalar esta App (PWA): Abre el menú del navegador (los 3 puntos) y pulsa 'Instalar aplicación' o 'Añadir a la pantalla de inicio'.");
+                    }
+                }
+            });
+        }
     } catch (e) {
         console.error(e);
         this.statusText.innerText = 'ONLINE (BÁSICO)';

@@ -33,7 +33,9 @@
 
         <!-- Dynamic Info Panel -->
         <div class="info-panel" id="info-panel">
-            <div class="status-badge" id="status-text">LISTO</div>
+            <div class="status-badge" id="status-text">ESCUCHANDO...</div>
+            <div id="status-sub" style="font-size: 11px; color: #a0a0ff; opacity: 0.8; margin-bottom: 10px;">Pulsa el orbe para hablar</div>
+            
             <div class="song-metadata">
                 <h1 id="song-title">¿Qué escuchamos hoy?</h1>
                 <p id="artist-name">Asistente JULIO</p>
@@ -55,6 +57,10 @@
                 <input type="range" id="volume-slider" min="0" max="100" value="100">
                 <i class="fas fa-volume-up"></i>
             </div>
+
+            <button id="install-btn" style="display:none; margin-top:20px; background: linear-gradient(to right, #00e0ff, #0072ff); color:#0b0d17; border:none; padding:12px 20px; border-radius:20px; font-weight:700; width: 100%; cursor: pointer; box-shadow: 0 4px 15px rgba(0, 224, 255, 0.3);">
+                <i class="fas fa-download"></i> DESCARGAR APP (APK)
+            </button>
         </div>
 
         <!-- Hidden but active player -->
@@ -62,10 +68,7 @@
             <div id="youtube-player"></div>
         </div>
 
-            <button id="install-btn" style="display:none; margin-top:20px; background: #00e0ff; color:#0b0d17; border:none; padding:10px 20px; border-radius:20px; font-weight:700; width: 100%; cursor: pointer; box-shadow: 0 0 15px rgba(0, 224, 255, 0.4);">
-                <i class="fas fa-download"></i> INSTALAR APP
-            </button>
-            <div id="transcript-box" class="transcript-view">ESCUCHANDO...</div>
+        <div id="transcript-box" class="transcript-view">ESCUCHANDO...</div>
         </div>
 
     <!-- YouTube IFrame API -->

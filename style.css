@@ -67,6 +67,8 @@ body {
 .assistant-orb {
   width: 130px;
   height: 130px;
+  flex-shrink: 0;
+  aspect-ratio: 1/1;
   border-radius: 50%;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
   display: flex;
@@ -105,10 +107,10 @@ body {
 }
 
 .avatar-sm {
-  width: 90%;
-  height: 90%;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
-  object-fit: cover;
+  object-fit: contain;
   transition: transform 0.5s ease;
   filter: drop-shadow(0 0 10px rgba(0,0,0,0.5));
 }
@@ -145,16 +147,17 @@ body {
   right: 0px;
   background: var(--primary-color);
   color: #0b0d17;
-  width: 42px;
-  height: 42px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   display: flex;
   justify-content: center;
   align-items: center;
-  font-size: 18px;
+  font-size: 20px;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
   border: 4px solid #0b0d17;
   transition: all 0.3s ease;
+  z-index: 101;
 }
 
 .assistant-orb.active .fa-microphone {
