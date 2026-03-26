@@ -198,31 +198,36 @@ class JulioApp {
             const { interim, final, error } = res;
             
             if (error) {
-                // AUTO-HEALING
-                if (error === 'network' || error === 'no-speech' || error === 'aborted') {
-                    return;
-                }
-                console.error("Critical Mic error:", error);
-                if (tBox) tBox.innerText = "Reintentando...";
+                if (error === 'network' || error === 'no-speech' || error === 'aborted') return;
+                console.error("Mic error:", error);
                 return;
             }
 
-            const text = (final || interim).toLowerCase();
+            const text = (final || interim).toLowerCase().trim();
             if (tBox && text) {
                 tBox.innerText = text;
-                clearTimeout(clearTimer);
-                clearTimer = setTimeout(() => { tBox.innerText = 'ESCUCHANDO...'; }, 5000);
             }
 
-            // COMMAND PROCESSING
-            if (text.includes('julio') || text.includes('hulio') || text.includes('oye')) {
-                const parts = text.split(/julio|hulio|oye/);
-                const cmd = parts.pop().trim();
-                
-                if (final && cmd.length > 2) {
-                    this.handleCommand(cmd);
-                    if (tBox) tBox.innerText = "ORDEN: " + cmd;
+            // FASTER COMMAND PROCESSING (using interim for immediate action)
+            const triggerWords = ['julio', 'julio,', 'hulio', 'oye', 'asistente', 'hey'];
+            let foundTrigger = false;
+            let commandText = "";
+
+            for (const word of triggerWords) {
+                if (text.includes(word)) {
+                    foundTrigger = true;
+                    commandText = text.split(word).pop().trim();
+                    break;
                 }
+            }
+
+            // Also check for direct commands if it's already listening
+            if (!foundTrigger && text.length > 2) {
+                commandText = text;
+            }
+
+            if (commandText.length > 1) {
+                this.handleVoiceCommand(commandText, !!final);
             }
         });
     } catch (e) {
@@ -232,78 +237,63 @@ class JulioApp {
     }
   }
 
-  stopListening() {
-    this.isRecording = false;
-    this.micBtn.classList.remove('active');
-    this.statusText.innerText = 'JULIO ONLINE';
-    clearInterval(this.heartbeat);
-    this.voice.stopListening();
-    this.stopVisualizer();
-    const tBox = document.getElementById('transcript-box');
-    if (tBox) tBox.innerText = 'Voz desactivada';
-  }
+  // Improved Command Handler with state tracking to avoid double-triggering
+  async handleVoiceCommand(cmd, isFinal) {
+    const now = Date.now();
+    if (this._lastCmdText === cmd && (now - (this._lastCmdTime || 0)) < 1500) return;
+    
+    // Commands to trigger ONCE even on interim
+    const instantCmds = /para|detén|detente|stop|silencio|siguiente|skip|saltar/;
+    
+    if (cmd.match(instantCmds)) {
+        this._lastCmdText = cmd;
+        this._lastCmdTime = now;
+        this.processAction(cmd);
+        return;
+    }
 
-  togglePlayback() {
-    const isPlaying = this.youtube.player?.getPlayerState() === YT.PlayerState.PLAYING;
-    if (isPlaying) {
-        this.youtube.pause();
-        this.playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
-    } else {
-        this.youtube.resume();
-        this.playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+    // Commands to wait for final to be sure
+    if (isFinal) {
+        this._lastCmdText = cmd;
+        this._lastCmdTime = now;
+        this.processAction(cmd);
     }
   }
 
-  async handleCommand(cmd) {
-    console.log("Analyzing natural command:", cmd);
+  async processAction(cmd) {
+    console.log("Processing Action:", cmd);
     
     // Command Dictionaries
-    const stopWords = /pausa|deten|para|detente|stop|silencio|calla|quieto/;
-    const nextWords = /siguiente|salta|otra|próxima|proxima|adelanta|adelante|cambia|cambiar/;
-    const playWords = /reanuda|continua|continúa|reproduce|dale|play|seguir|sigue/;
-    const repeatWords = /repite|repetir|otra vez|de nuevo|inicio/;
-    const volumeWords = /volumen|sonido|audio/;
+    const stopWords = /pausa|deten|para|detente|stop|silencio|calla|quieto|ya/;
+    const nextWords = /siguiente|salta|otra|próxima|proxima|adelanta|adelante|cambia|cambiar|skip/;
+    const playWords = /reanuda|continua|continúa|reproduce|dale|play|seguir|sigue|seguí/;
+    const volumeWords = /volumen|sonido|audio|más fuerte|mas fuerte|más alto|mas alto|más bajo|mas bajo/;
 
-    // 1. VOLUME Commands
-    if (cmd.match(volumeWords)) {
+    // 1. STOP Command
+    if (cmd.match(stopWords)) {
+        this.youtube.pause();
+        this.playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+        this.statusText.innerText = 'PAUSADO';
+        await this.talk("Parando.");
+        return;
+    } 
+
+    // 2. VOLUME Commands
+    if (cmd.match(volumeWords) || cmd.includes('baja') || cmd.includes('sube')) {
         let currentVol = this.youtube.player?.getVolume() || 100;
         
-        if (cmd.includes('sube') || cmd.includes('más') || cmd.includes('mas')) {
-            currentVol = Math.min(100, currentVol + 20);
-            await this.talk("Subiendo volumen.");
-        } else if (cmd.includes('baja') || cmd.includes('menos')) {
-            currentVol = Math.max(0, currentVol - 20);
-            await this.talk("Bajando volumen.");
-        } else if (cmd.match(/\d+/)) {
-            const num = parseInt(cmd.match(/\d+/)[0]);
-            currentVol = Math.min(100, Math.max(0, num));
-            await this.talk(`Volumen al ${currentVol}%`);
-        } else if (cmd.includes('silencio') || cmd.includes('mudo')) {
-            currentVol = 0;
-            await this.talk("Puesto en silencio.");
+        if (cmd.includes('sube') || cmd.includes('más') || cmd.includes('mas') || cmd.includes('fuerte') || cmd.includes('alto')) {
+            currentVol = Math.min(100, currentVol + 25);
+            this.statusText.innerText = 'VOL +';
+        } else if (cmd.includes('baja') || cmd.includes('menos') || cmd.includes('suave')) {
+            currentVol = Math.max(0, currentVol - 25);
+            this.statusText.innerText = 'VOL -';
         }
 
         this.youtube.player?.setVolume(currentVol);
         if (this.volumeSlider) this.volumeSlider.value = currentVol;
         return;
     }
-
-    // 2. REPEAT Command
-    if (cmd.match(repeatWords)) {
-        this.statusText.innerText = 'REPITIE...';
-        this.youtube.player?.seekTo(0);
-        this.youtube.player?.playVideo();
-        await this.talk("Repitiendo canción.");
-        return;
-    }
-
-    // 2. STOP Command
-    if (cmd.match(stopWords)) {
-        this.youtube.pause();
-        this.playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
-        await this.talk("Entendido.");
-        return;
-    } 
     
     // 3. NEXT Command
     if (cmd.match(nextWords)) {
@@ -318,15 +308,11 @@ class JulioApp {
         return;
     }
 
-    // 5. SEARCH & "PON" Command
-    // Strip common filler words: pon, ponme, búscame, busca, toca, reproduce, pon algo de...
+    // 5. SEARCH Command
     let searchStr = cmd.replace(/pon|ponme|búscame|buscame|busca|toca|reproduce|algo de|quiero oír|quiero escuchar/g, '').trim();
 
     if (searchStr.length > 2) {
         await this.handleSearch(searchStr);
-    } else if (cmd.includes('pon') || cmd.includes('musica') || cmd.includes('música')) {
-        // If they just said "Julio, pon música"
-        await this.handleSkip();
     }
   }
 

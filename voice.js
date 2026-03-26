@@ -22,11 +22,10 @@ export class VoiceAssistant {
     }
 
     this.recognition = new SpeechRecognition();
-    this.recognition.lang = 'es-ES';
-    // continuous=true is very buggy on mobile Chrome. 
-    // We use false and let our onend restart logic handle the 'perpetual' listening.
+    this.recognition.lang = 'es-419'; // Latin American Spanish for better regional accuracy
     this.recognition.continuous = false; 
     this.recognition.interimResults = true;
+    this.recognition.maxAlternatives = 1;
   }
 
   async getAudioStream() {
@@ -37,36 +36,22 @@ export class VoiceAssistant {
     const loadVoices = () => {
       const voices = this.synth.getVoices();
       if (!voices || voices.length === 0) return;
-
-      console.log("Found voices:", voices.length);
-      
-      // Try to find a male Spanish voice (for "JULIO")
-      this.voice = voices.find(v => (v.lang.includes('es') || v.lang.includes('ES')) && v.name.toLowerCase().includes('google')) || 
+      this.voice = voices.find(v => v.lang.includes('es') && v.name.toLowerCase().includes('google')) || 
                    voices.find(v => v.lang.includes('es')) || 
                    voices[0];
-                   
-      console.log("Selected voice:", this.voice ? this.voice.name : "None");
     };
-    
-    if (this.synth.onvoiceschanged !== undefined) {
-      this.synth.onvoiceschanged = loadVoices;
-    }
-    
-    // Some browsers need a delay
+    if (this.synth.onvoiceschanged !== undefined) this.synth.onvoiceschanged = loadVoices;
     loadVoices();
-    setTimeout(loadVoices, 100);
     setTimeout(loadVoices, 500);
-    setTimeout(loadVoices, 2000);
   }
 
   listen(onResult) {
     if (!this.recognition) return;
-    
     this.shouldRestart = true;
 
     this.recognition.onstart = () => {
       this.isListening = true;
-      console.log("Voice Recognition Started");
+      if (typeof navigator.vibrate === 'function') navigator.vibrate(20);
     };
 
     this.recognition.onresult = (event) => {
@@ -74,68 +59,34 @@ export class VoiceAssistant {
       let finalTranscript = '';
 
       for (let i = event.resultIndex; i < event.results.length; ++i) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalTranscript += transcript;
-        } else {
-          interimTranscript += transcript;
-        }
+        if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
+        else interimTranscript += event.results[i][0].transcript;
       }
       
       if (onResult && (finalTranscript || interimTranscript)) {
-        onResult({
-          interim: interimTranscript.trim(),
-          final: finalTranscript.trim()
-        });
+        onResult({ interim: interimTranscript.trim(), final: finalTranscript.trim() });
       }
     };
 
     this.recognition.onerror = (event) => {
-      console.warn("Voice Engine Error:", event.error);
-      
-      if (event.error === 'not-allowed') {
-        this.shouldRestart = false;
-        alert("Permiso de micrófono denegado. Por favor, actívalo en los ajustes del sitio.");
-      }
-
-      if (onResult) {
-        onResult({ interim: '', final: '', error: event.error });
-      }
-      
-      // On mobile, 'no-speech' is very common and shouldn't kill the session
-      if (['no-speech', 'audio-capture', 'network'].includes(event.error)) {
-        // Recognition will trigger onend, where we restart
-        return;
-      }
+      console.warn("Speech recognition error:", event.error);
+      if (onResult) onResult({ interim: '', final: '', error: event.error });
+      if (event.error === 'not-allowed') this.shouldRestart = false;
     };
 
     this.recognition.onend = () => {
-      console.log("Voice Session Ended. Should restart:", this.shouldRestart);
       this.isListening = false;
-      
       if (this.shouldRestart) {
-        // Use a slight exponential-like backoff or just a delay for mobile stability
         setTimeout(() => { 
           if (this.shouldRestart && !this.isListening) {
-             try { 
-               this.recognition.start(); 
-               console.log("Voice Recognition Auto-Restarted");
-             } catch(e) {
-               console.warn("Failed to restart recognition:", e.message);
-               // If it fails to start, it might already be running or blocked
-             }
+             try { this.recognition.start(); } catch(e) {}
           }
-        }, 300);
+        }, 150); // Faster restart for 'Always-on' feel
       }
     };
 
-    try {
-        this.recognition.start();
-    } catch(e) { 
-        console.warn("Recognition already active or failed to start:", e.message);
-        // If it's already active, we ensure isListening is true
-        this.isListening = true;
-    }
+    try { this.recognition.start(); } 
+    catch(e) { this.isListening = true; }
   }
 
   stopListening() {
