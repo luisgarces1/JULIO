@@ -77,12 +77,32 @@ class JulioApp {
             if (this.lastArtist) setTimeout(() => this.handleSkip(), 2000);
         });
 
-        // Auto-next when video ends
-        this.youtube.onEndCallback = () => {
-          console.log("App received auto-next request");
-          this.handleSkip();
-        };
+        // Install Button PWA
+    const installBtn = document.getElementById('install-btn');
+    let deferredPrompt;
 
+    window.addEventListener('beforeinstallprompt', (e) => {
+        // Prevent Chrome 67 and earlier from automatically showing the prompt
+        e.preventDefault();
+        // Stash the event so it can be triggered later.
+        deferredPrompt = e;
+        // Update UI notify the user they can install the PWA
+        if (installBtn) installBtn.style.display = 'block';
+    });
+
+    if (installBtn) {
+        installBtn.addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            // Show the install prompt
+            deferredPrompt.prompt();
+            // Wait for the user to respond to the prompt
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`User response to the install prompt: ${outcome}`);
+            // We've used the prompt, and can't use it again, throw it away
+            deferredPrompt = null;
+            installBtn.style.display = 'none';
+        });
+    }
     } catch (e) {
         console.error(e);
         this.statusText.innerText = 'ONLINE (BÁSICO)';
@@ -114,35 +134,39 @@ class JulioApp {
         this.micBtn.classList.add('active');
         this.statusText.innerText = 'ESCUCHANDO';
         
+        const tBox = document.getElementById('transcript-box');
+        if (tBox) tBox.innerText = 'ESCUCHANDO...';
+
         const stream = await this.voice.getAudioStream();
         this.startVisualizer(stream);
 
         let clearTimer;
+        
+        // Voice Heartbeat: Forces the engine to stay awake in mobile
+        this.heartbeat = setInterval(() => {
+          if (this.isRecording && this.voice.recognition) {
+             console.log("Heartbeat: keeping voice alive...");
+          }
+        }, 3000);
 
         this.voice.listen((res) => {
             const { interim, final, error } = res;
-            const tBox = document.getElementById('transcript-box');
             
             if (error) {
-                // AUTO-HEALING: We never stop the mic for common errors in App mode
+                // AUTO-HEALING
                 if (error === 'network' || error === 'no-speech' || error === 'aborted') {
-                    console.warn("Self-healing mic connection from error:", error);
-                    // The engine (voice.js) handles the restart, we just stay in active state
                     return;
                 }
-                
                 console.error("Critical Mic error:", error);
-                this.statusSub.innerText = "Reintentando...";
+                if (tBox) tBox.innerText = "Reintentando...";
                 return;
             }
 
             const text = (final || interim).toLowerCase();
-            if (tBox) {
-                if (text) {
-                    tBox.innerText = text;
-                    clearTimeout(clearTimer);
-                    clearTimer = setTimeout(() => { tBox.innerText = 'Vigilando...'; }, 5000);
-                }
+            if (tBox && text) {
+                tBox.innerText = text;
+                clearTimeout(clearTimer);
+                clearTimer = setTimeout(() => { tBox.innerText = 'ESCUCHANDO...'; }, 5000);
             }
 
             // COMMAND PROCESSING
@@ -167,6 +191,7 @@ class JulioApp {
     this.isRecording = false;
     this.micBtn.classList.remove('active');
     this.statusText.innerText = 'JULIO ONLINE';
+    clearInterval(this.heartbeat);
     this.voice.stopListening();
     this.stopVisualizer();
     const tBox = document.getElementById('transcript-box');
