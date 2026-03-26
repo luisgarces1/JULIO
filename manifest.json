@@ -1,0 +1,23 @@
+{
+  "name": "JULIO - AI Music Assistant",
+  "short_name": "JULIO",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0b0d17",
+  "theme_color": "#00e0ff",
+  "orientation": "portrait",
+  "description": "Tu asistente musical inteligente con control por voz manos libres.",
+  "icons": [
+    {
+      "src": "avatar.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "avatar.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
