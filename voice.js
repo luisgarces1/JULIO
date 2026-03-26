@@ -85,29 +85,28 @@ export class VoiceAssistant {
     };
 
     this.recognition.onerror = (event) => {
-      console.error("Voice Engine Error:", event.error);
+      console.warn("Voice Engine Recoverable Error:", event.error);
       if (onResult) {
         onResult({ interim: '', final: '', error: event.error });
       }
       
-      // Critical for persistent Apps: We don't die on harmless errors
-      if (event.error === 'no-speech' || event.error === 'network' || event.error === 'aborted') {
+      // Critical for Android persistence: we don't die
+      if (['network', 'no-speech', 'aborted', 'audio-capture'].includes(event.error)) {
           return; 
       }
       this.isListening = false;
     };
 
     this.recognition.onend = () => {
-      console.log("Voice Engine session ended.");
-      // CRITICAL: Always jump back to life if the app is still active
+      console.log("Voice Session Ended.");
+      // Always jump back to life with a small delay for stable mobile connection
       if (this.shouldRestart) {
-        console.log("Auto-restarting voice engine...");
-        try {
-          this.recognition.start();
-        } catch (e) {
-          // If already started, ignore. If locked, retry in a bit.
-          setTimeout(() => { if (this.shouldRestart) this.recognition.start(); }, 1000);
-        }
+        console.log("Healing voice connection in 1s...");
+        setTimeout(() => { 
+          if (this.shouldRestart) {
+            try { this.recognition.start(); } catch(e) {}
+          }
+        }, 1000);
       } else {
         this.isListening = false;
       }

@@ -1,7 +1,9 @@
 {
   "name": "JULIO - AI Music Assistant",
   "short_name": "JULIO",
+  "id": "./",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#0b0d17",
   "theme_color": "#00e0ff",
@@ -12,12 +14,13 @@
       "src": "avatar.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "avatar.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

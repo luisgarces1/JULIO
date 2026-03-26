@@ -200,17 +200,17 @@ class JulioApp {
         
         if (cmd.includes('sube') || cmd.includes('más') || cmd.includes('mas')) {
             currentVol = Math.min(100, currentVol + 20);
-            await this.voice.speak("Subiendo volumen.");
+            await this.talk("Subiendo volumen.");
         } else if (cmd.includes('baja') || cmd.includes('menos')) {
             currentVol = Math.max(0, currentVol - 20);
-            await this.voice.speak("Bajando volumen.");
+            await this.talk("Bajando volumen.");
         } else if (cmd.match(/\d+/)) {
             const num = parseInt(cmd.match(/\d+/)[0]);
             currentVol = Math.min(100, Math.max(0, num));
-            await this.voice.speak(`Volumen al ${currentVol}%`);
+            await this.talk(`Volumen al ${currentVol}%`);
         } else if (cmd.includes('silencio') || cmd.includes('mudo')) {
             currentVol = 0;
-            await this.voice.speak("Puesto en silencio.");
+            await this.talk("Puesto en silencio.");
         }
 
         this.youtube.player?.setVolume(currentVol);
@@ -223,7 +223,7 @@ class JulioApp {
         this.statusText.innerText = 'REPITIE...';
         this.youtube.player?.seekTo(0);
         this.youtube.player?.playVideo();
-        await this.voice.speak("Repitiendo canción.");
+        await this.talk("Repitiendo canción.");
         return;
     }
 
@@ -231,7 +231,7 @@ class JulioApp {
     if (cmd.match(stopWords)) {
         this.youtube.pause();
         this.playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
-        await this.voice.speak("Entendido.");
+        await this.talk("Entendido.");
         return;
     } 
     
@@ -269,16 +269,23 @@ class JulioApp {
         } else {
             const err = music?._error || "No encontré eso.";
             this.statusSub.innerText = err;
-            await this.voice.speak("No encontré nada de " + query);
+            await this.talk(`No encontré nada de ${query}`);
         }
     } catch (e) {
         this.statusText.innerText = 'SIN RESPUESTA';
     }
   }
 
+  async talk(text) {
+    // Duck volume while speaking
+    const oldVol = this.youtube.player?.getVolume() || 100;
+    this.youtube.player?.setVolume(20);
+    await this.voice.speak(text);
+    this.youtube.player?.setVolume(oldVol);
+  }
+
   async handleSkip() {
     this.statusText.innerText = 'CAMBIANDO...';
-    // If we have a last artist, search for more of them
     const artistsToTry = this.lastArtist || "Top Éxitos";
     
     const results = await this.youtube.searchMusic(artistsToTry, true);
@@ -286,7 +293,7 @@ class JulioApp {
         const next = results[Math.floor(Math.random() * results.length)];
         this.playTrack(next);
     } else {
-        await this.voice.speak("No hay más canciones similares.");
+        await this.talk("No hay más canciones similares.");
     }
   }
 
@@ -301,7 +308,7 @@ class JulioApp {
     this.youtube.play(track.id);
     this.playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
     this.statusText.innerText = 'REPRODUCIENDO';
-    this.voice.speak(`Poniendo ${this.currentSongTitle}`);
+    this.talk(`Poniendo ${this.currentSongTitle}`);
   }
 
   startVisualizer(stream) {
