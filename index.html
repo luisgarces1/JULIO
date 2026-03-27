@@ -8,27 +8,32 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0b0d17">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <link rel="apple-touch-icon" href="IMG_8956.JPG">
+    <!-- PWA primary link -->
+    <link rel="manifest" href="manifest.json?v=3">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('service-worker.js');
-            });
-        }
-    </script>
 </head>
 <body>
+    <!-- Initial Unlock Overlay -->
+    <div id="start-screen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:radial-gradient(circle at center, #1a1e3a 0%, #07090f 100%); z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:30px;">
+        <div style="width:140px; height:140px; border-radius:50%; overflow:hidden; border:4px solid var(--primary-color); margin-bottom:30px; box-shadow:0 0 30px rgba(0,224,255,0.4); animation: breathe 3s infinite ease-in-out;">
+            <img src="IMG_8956.JPG" style="width:100%; height:100%; object-fit:cover;">
+        </div>
+        <h1 style="color:white; font-size:32px; margin-bottom:10px;">JULIO AI</h1>
+        <p style="color:#a0a0ff; margin-bottom:40px; font-size:16px;">Toca para activar el asistente de voz y la música.</p>
+        <button id="activate-system" style="background:var(--primary-color); color:#07090f; border:none; padding:18px 45px; border-radius:30px; font-size:18px; font-weight:800; cursor:pointer; box-shadow:0 10px 25px rgba(0,224,255,0.3); letter-spacing:1px;">ACTIVAR SISTEMA</button>
+    </div>
+
     <div id="minimal-app">
         <!-- Status & Metadata -->
         <div class="info-panel">
-            <div class="status-badge" id="status-text">ESCUCHANDO...</div>
-            <div id="status-sub" style="font-size: 11px; color: #a0a0ff; opacity: 0.8; margin-bottom: 25px;">SISTEMA ONLINE</div>
+            <div class="status-badge" id="status-text">LISTO</div>
+            <div id="status-sub" style="font-size: 11px; color: #a0a0ff; opacity: 0.8; margin-bottom: 25px;">ONLINE</div>
             
             <div class="song-metadata">
-                <h1 id="song-title">JULIO AI</h1>
+                <h1 id="song-title">SISTEMA LISTO</h1>
                 <p id="artist-name">Asistente de Voz</p>
             </div>
         </div>
@@ -42,7 +47,7 @@
             <i class="fas fa-microphone" id="mic-icon"></i>
         </div>
 
-        <div id="transcript-box" class="transcript-view">ESCUCHANDO...</div>
+        <div id="transcript-box" class="transcript-view">ESPERANDO ORDEN...</div>
 
         <!-- Control Hub -->
         <div class="control-hub">
@@ -75,7 +80,7 @@
     </div>
 
     <!-- PWA Installation Modal -->
-    <div id="install-modal">
+    <div id="install-modal" style="display:none;">
         <div class="modal-content">
             <h2 id="modal-title">Instalar en Móvil</h2>
             <p id="install-instructions"></p>

@@ -67,83 +67,100 @@ class JulioApp {
 
   async init() {
     console.log("Julio Initializing...");
-    this.statusText.innerText = 'CARGANDO...';
-    try {
-        const ready = await this.youtube.initialize();
-        this.statusText.innerText = 'JULIO ONLINE';
-        this.statusSub.innerText = 'Pulsa el orbe para hablar';
-        
-        this.youtube.setOnErrorCallback(() => {
-            if (this.lastArtist) setTimeout(() => this.handleSkip(), 2000);
-        });
+    
+    // Service Worker Registration
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js').catch(e => console.error("SW Error:", e));
+    }
 
-        this.youtube.onEndCallback = () => {
-             console.log("Track ended, advancing...");
-             this.handleSkip();
+    const startScreen = document.getElementById('start-screen');
+    const startBtn = document.getElementById('activate-system');
+    
+    if (startBtn && startScreen) {
+        startBtn.onclick = async () => {
+            this.statusText.innerText = 'INICIANDO...';
+            try {
+                // UNLOCK AUDIO CONTEXT & MIC
+                const stream = await this.voice.getAudioStream();
+                this.voice.initVoices();
+                
+                // INITIALIZE YOUTUBE
+                const ready = await this.youtube.initialize();
+                
+                if (ready) {
+                    startScreen.style.display = 'none';
+                    this.statusText.innerText = 'LISTO';
+                    this.statusSub.innerText = 'Escuchando para ayudarte';
+                    
+                    // Force a tiny speak to unlock TTS
+                    this.voice.speak('');
+                    
+                    // Start Listening Automatically
+                    this.startListening();
+                } else {
+                    alert("Error en YouTube API. Reintenta.");
+                }
+            } catch (e) {
+                console.error("Initiation Failed:", e);
+                alert("Necesito permiso de micrófono para funcionar.");
+            }
         };
+    }
 
-        // Visibility Heartbeat: Attempts to resume if system pauses in background
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                console.log("App moved to background, protecting playback...");
-                // On mobile, if we are playing manually, we want to stay playing
-                setTimeout(() => {
-                    if (this.youtube.isPlayingManually && this.youtube.player?.getPlayerState() !== YT.PlayerState.PLAYING) {
-                        this.youtube.resume();
-                    }
-                }, 1000);
+    this.youtube.setOnErrorCallback(() => {
+        if (this.lastArtist) setTimeout(() => this.handleSkip(), 2000);
+    });
+
+    this.youtube.onEndCallback = () => {
+         console.log("Track ended, advancing...");
+         this.handleSkip();
+    };
+
+    // PWA Installation & "APK" Request
+    const installBtn = document.getElementById('install-btn');
+    let deferredPrompt;
+
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (!isStandalone && installBtn) installBtn.style.display = 'block';
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        if (installBtn) installBtn.style.display = 'block';
+    });
+
+    if (installBtn) {
+        const modal = document.getElementById('install-modal');
+        const inst = document.getElementById('install-instructions');
+        const title = document.getElementById('modal-title');
+        const close = document.getElementById('close-modal');
+
+        if (close) close.onclick = () => { modal.style.display = 'none'; };
+
+        installBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                deferredPrompt = null;
+                if (outcome === 'accepted') installBtn.style.display = 'none';
+            } else {
+                const ua = navigator.userAgent.toLowerCase();
+                const isIOS = /ipad|iphone|ipod/.test(ua) && !window.MSStream;
+                const isSamsung = /samsungbrowser/.test(ua);
+                
+                modal.style.display = 'flex';
+                title.innerText = "Pasos para Instalar:";
+                
+                if (isIOS) {
+                    inst.innerHTML = "1. Pulsa el botón <b>Compartir</b> (abajo en centro).<br>2. Elige <b>'Añadir a panta. inicio'</b>.";
+                } else if (isSamsung) {
+                    inst.innerHTML = "1. Pulsa el <b>Menú (≡)</b> abajo.<br>2. Pulsa <b>'Añadir a panta. inicio'</b>.";
+                } else {
+                    inst.innerHTML = "1. Pulsa los <b>tres puntos (⋮)</b> arriba.<br>2. Pulsa en <b>'Instalar aplicación'</b>.";
+                }
             }
         });
-
-        // PWA Installation & "APK" Request
-        const installBtn = document.getElementById('install-btn');
-        let deferredPrompt;
-
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-        if (!isStandalone && installBtn) installBtn.style.display = 'block';
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            if (installBtn) installBtn.style.display = 'block';
-        });
-
-        if (installBtn) {
-            const modal = document.getElementById('install-modal');
-            const inst = document.getElementById('install-instructions');
-            const title = document.getElementById('modal-title');
-            const close = document.getElementById('close-modal');
-
-            if (close) close.onclick = () => { modal.style.display = 'none'; };
-
-            installBtn.addEventListener('click', async (e) => {
-                e.preventDefault();
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    const { outcome } = await deferredPrompt.userChoice;
-                    deferredPrompt = null;
-                    if (outcome === 'accepted') installBtn.style.display = 'none';
-                } else {
-                    const ua = navigator.userAgent.toLowerCase();
-                    const isIOS = /ipad|iphone|ipod/.test(ua) && !window.MSStream;
-                    const isSamsung = /samsungbrowser/.test(ua);
-                    
-                    modal.style.display = 'flex';
-                    title.innerText = "Sigue estos pasos:";
-                    
-                    if (isIOS) {
-                        inst.innerHTML = "1. Pulsa el botón <b>Compartir</b> (cuadrado con flecha abajo/centro).<br>2. Baja y pulsa en <b>'Añadir a la pantalla de inicio'</b>.";
-                    } else if (isSamsung) {
-                        inst.innerHTML = "1. Pulsa el <b>Menú (≡)</b> abajo a la derecha.<br>2. Pulsa en <b>'Añadir página a'</b> y elige <b>'Pantalla de inicio'</b>.";
-                    } else {
-                        inst.innerHTML = "1. Pulsa los <b>tres puntos (⋮)</b> arriba a la derecha.<br>2. Pulsa en <b>'Instalar aplicación'</b> o 'Añadir a pantalla de inicio'.";
-                    }
-                }
-            });
-        }
-    } catch (e) {
-        console.error(e);
-        this.statusText.innerText = 'ONLINE';
     }
   }
 
