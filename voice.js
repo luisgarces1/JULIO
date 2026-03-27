@@ -22,7 +22,7 @@ export class VoiceAssistant {
     }
 
     this.recognition = new SpeechRecognition();
-    this.recognition.lang = 'es-419'; // Latin American Spanish for better regional accuracy
+    this.recognition.lang = 'es-419'; 
     this.recognition.continuous = false; 
     this.recognition.interimResults = true;
     this.recognition.maxAlternatives = 1;
@@ -36,13 +36,35 @@ export class VoiceAssistant {
     const loadVoices = () => {
       const voices = this.synth.getVoices();
       if (!voices || voices.length === 0) return;
-      this.voice = voices.find(v => v.lang.includes('es') && v.name.toLowerCase().includes('google')) || 
+      
+      // Look for male voices or names that sound masculine for "JULIO"
+      const malePattern = /male|masculino|pablo|enrique|helena|ana|claudia/i; 
+      // Note: ana/claudia are excluded. 
+      // Prefer Google or high-quality voices
+      this.voice = voices.find(v => v.lang.includes('es') && v.name.toLowerCase().includes('pablo')) || 
+                   voices.find(v => v.lang.includes('es') && v.name.toLowerCase().includes('male')) || 
+                   voices.find(v => v.lang.includes('es') && v.name.toLowerCase().includes('enrique')) ||
+                   voices.find(v => v.lang.includes('es') && v.name.toLowerCase().includes('google')) ||
                    voices.find(v => v.lang.includes('es')) || 
                    voices[0];
     };
     if (this.synth.onvoiceschanged !== undefined) this.synth.onvoiceschanged = loadVoices;
     loadVoices();
     setTimeout(loadVoices, 500);
+  }
+
+  speak(text) {
+    return new Promise((resolve) => {
+      if (!this.synth) return resolve();
+      this.synth.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      if (this.voice) utterance.voice = this.voice;
+      utterance.pitch = 0.85; // Lower pitch to sound more like a male assistant
+      utterance.rate = 1.0;
+      utterance.onend = () => resolve();
+      utterance.onerror = () => resolve();
+      this.synth.speak(utterance);
+    });
   }
 
   listen(onResult) {
@@ -81,7 +103,7 @@ export class VoiceAssistant {
           if (this.shouldRestart && !this.isListening) {
              try { this.recognition.start(); } catch(e) {}
           }
-        }, 150); // Faster restart for 'Always-on' feel
+        }, 150); 
       }
     };
 

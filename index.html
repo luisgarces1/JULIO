@@ -22,7 +22,18 @@
 </head>
 <body>
     <div id="minimal-app">
-        <!-- Floating Assistant Sphere -->
+        <!-- Status & Metadata -->
+        <div class="info-panel">
+            <div class="status-badge" id="status-text">ESCUCHANDO...</div>
+            <div id="status-sub" style="font-size: 11px; color: #a0a0ff; opacity: 0.8; margin-bottom: 25px;">SISTEMA ONLINE</div>
+            
+            <div class="song-metadata">
+                <h1 id="song-title">JULIO AI</h1>
+                <p id="artist-name">Asistente de Voz</p>
+            </div>
+        </div>
+
+        <!-- Assistant Sphere -->
         <div class="assistant-orb" id="mic-btn">
             <div class="orb-content">
                 <img src="IMG_8956.JPG" alt="JULIO" id="avatar" class="avatar-sm">
@@ -31,16 +42,10 @@
             <i class="fas fa-microphone" id="mic-icon"></i>
         </div>
 
-        <!-- Dynamic Info Panel -->
-        <div class="info-panel" id="info-panel">
-            <div class="status-badge" id="status-text">ESCUCHANDO...</div>
-            <div id="status-sub" style="font-size: 11px; color: #a0a0ff; opacity: 0.8; margin-bottom: 10px;">Pulsa el orbe para hablar</div>
-            
-            <div class="song-metadata">
-                <h1 id="song-title">¿Qué escuchamos hoy?</h1>
-                <p id="artist-name">Asistente JULIO</p>
-            </div>
-            
+        <div id="transcript-box" class="transcript-view">ESCUCHANDO...</div>
+
+        <!-- Control Hub -->
+        <div class="control-hub">
             <div class="visualizer-mini" id="visualizer">
                 <div class="b"></div><div class="b"></div><div class="b"></div>
                 <div class="b"></div><div class="b"></div><div class="b"></div>
@@ -58,25 +63,23 @@
                 <i class="fas fa-volume-up"></i>
             </div>
 
-            <button id="install-btn" style="display:none; margin-top:20px; background: linear-gradient(to right, #00e0ff, #0072ff); color:#0b0d17; border:none; padding:12px 20px; border-radius:20px; font-weight:700; width: 100%; cursor: pointer; box-shadow: 0 4px 15px rgba(0, 224, 255, 0.3);">
-                <i class="fas fa-download"></i> DESCARGAR APP (APK)
+            <button id="install-btn" style="display:none; margin-top:10px; background: rgba(255,255,255,0.1); color:white; border:1px solid var(--primary-color); padding:15px; border-radius:15px; font-weight:700; width: 100%; cursor: pointer;">
+                <i class="fas fa-mobile-alt"></i> INSTALAR APP (PWA)
             </button>
         </div>
 
-        <!-- Hidden but active player -->
+        <!-- Hidden player -->
         <div id="youtube-player-container">
             <div id="youtube-player"></div>
         </div>
-
-        <div id="transcript-box" class="transcript-view">ESCUCHANDO...</div>
-        </div>
+    </div>
 
     <!-- PWA Installation Modal -->
-    <div id="install-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); backdrop-filter:blur(10px); z-index:1000; align-items:center; justify-content:center;">
-        <div style="background:#1a1e3a; padding:30px; border-radius:25px; border:1px solid #00e0ff; max-width:90%; text-align:center; color:white; box-shadow:0 0 30px rgba(0,224,255,0.2);">
-            <h2 style="margin-bottom:15px; color:#00e0ff;">Instalar JULIO para Móvil</h2>
-            <p id="install-instructions" style="margin-bottom:20px; font-size:14px; line-height:1.5;">Para instalar esta App (APK/PWA):</p>
-            <button id="close-modal" style="background:#00e0ff; color:#0b0d17; border:none; padding:10px 25px; border-radius:15px; font-weight:700; cursor:pointer;">Entendido</button>
+    <div id="install-modal">
+        <div class="modal-content">
+            <h2 id="modal-title">Instalar en Móvil</h2>
+            <p id="install-instructions"></p>
+            <button id="close-modal">ENTENDIDO</button>
         </div>
     </div>
 

@@ -99,26 +99,19 @@ class JulioApp {
         const installBtn = document.getElementById('install-btn');
         let deferredPrompt;
 
-        // Check if already installed
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-        
-        if (!isStandalone && installBtn) {
-            installBtn.style.display = 'block';
-            installBtn.innerHTML = '<i class="fas fa-mobile-alt"></i> DESCARGAR APP (APK)';
-        }
+        if (!isStandalone && installBtn) installBtn.style.display = 'block';
 
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            if (installBtn) {
-                installBtn.style.display = 'block';
-                installBtn.innerHTML = '<i class="fas fa-download"></i> (APK) INSTALAR AHORA';
-            }
+            if (installBtn) installBtn.style.display = 'block';
         });
 
         if (installBtn) {
             const modal = document.getElementById('install-modal');
             const inst = document.getElementById('install-instructions');
+            const title = document.getElementById('modal-title');
             const close = document.getElementById('close-modal');
 
             if (close) close.onclick = () => { modal.style.display = 'none'; };
@@ -131,19 +124,26 @@ class JulioApp {
                     deferredPrompt = null;
                     if (outcome === 'accepted') installBtn.style.display = 'none';
                 } else {
-                    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-                    if (isIOS) {
-                        inst.innerText = "Para instalar en iPhone: Pulsa el botón 'Compartir' de Safari y luego selecciona 'Añadir a la pantalla de inicio'.";
-                    } else {
-                        inst.innerText = "Para instalar esta App en Android: Pulsa los 3 puntos del navegador y elige 'Instalar aplicación' o 'Añadir a la pantalla de inicio'.";
-                    }
+                    const ua = navigator.userAgent.toLowerCase();
+                    const isIOS = /ipad|iphone|ipod/.test(ua) && !window.MSStream;
+                    const isSamsung = /samsungbrowser/.test(ua);
+                    
                     modal.style.display = 'flex';
+                    title.innerText = "Sigue estos pasos:";
+                    
+                    if (isIOS) {
+                        inst.innerHTML = "1. Pulsa el botón <b>Compartir</b> (cuadrado con flecha abajo/centro).<br>2. Baja y pulsa en <b>'Añadir a la pantalla de inicio'</b>.";
+                    } else if (isSamsung) {
+                        inst.innerHTML = "1. Pulsa el <b>Menú (≡)</b> abajo a la derecha.<br>2. Pulsa en <b>'Añadir página a'</b> y elige <b>'Pantalla de inicio'</b>.";
+                    } else {
+                        inst.innerHTML = "1. Pulsa los <b>tres puntos (⋮)</b> arriba a la derecha.<br>2. Pulsa en <b>'Instalar aplicación'</b> o 'Añadir a pantalla de inicio'.";
+                    }
                 }
             });
         }
     } catch (e) {
         console.error(e);
-        this.statusText.innerText = 'ONLINE (BÁSICO)';
+        this.statusText.innerText = 'ONLINE';
     }
   }
 
