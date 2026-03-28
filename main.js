@@ -15,9 +15,20 @@ class JulioApp {
     this.currentSongTitle = "";
     this.currentVideoId = "";
 
+    this.logBox = document.createElement('div');
+    this.logBox.style.cssText = 'position:fixed; bottom:0; left:0; width:100%; font-size:9px; color:rgba(255,255,255,0.3); padding:5px; pointer-events:none; z-index:9999; max-height:40px; overflow:hidden;';
+    document.body.appendChild(this.logBox);
+
     this.setupUI();
     this.setupEventListeners();
     this.init();
+  }
+
+  log(msg) {
+    console.log("APP LOG:", msg);
+    const div = document.createElement('div');
+    div.innerText = `> ${msg}`;
+    this.logBox.prepend(div);
   }
 
   setupUI() {
@@ -34,9 +45,9 @@ class JulioApp {
         const input = document.createElement('input');
         input.id = 'cmd-input';
         input.type = 'text';
-        input.placeholder = 'Escribe un comando aquí...';
+        input.placeholder = 'Busca música aquí...';
         input.className = 'neo-input';
-        document.getElementById('info-panel').appendChild(input);
+        document.querySelector('.control-hub')?.prepend(input);
         
         input.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -61,16 +72,17 @@ class JulioApp {
         this.volumeSlider.addEventListener('input', (e) => {
             const vol = e.target.value;
             this.youtube.player?.setVolume(vol);
+            this.log(`Volumen: ${vol}%`);
         });
     }
   }
 
   async init() {
-    console.log("Julio Initializing...");
+    this.log("Iniciando Controladores...");
     
     // Service Worker Registration
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('service-worker.js').catch(e => console.error("SW Error:", e));
+      navigator.serviceWorker.register('service-worker.js').catch(e => this.log("SW Error"));
     }
 
     const startScreen = document.getElementById('start-screen');
@@ -78,41 +90,47 @@ class JulioApp {
     
     if (startBtn && startScreen) {
         startBtn.onclick = async () => {
-            this.statusText.innerText = 'INICIANDO...';
+            this.log("Botón Activar Pulsado");
+            this.statusText.innerText = 'CARGANDO...';
             try {
                 // UNLOCK AUDIO CONTEXT & MIC
-                const stream = await this.voice.getAudioStream();
+                this.log("Desbloqueando Micrófono...");
+                await this.voice.getAudioStream();
                 this.voice.initVoices();
                 
                 // INITIALIZE YOUTUBE
+                this.log("Iniciando YouTube...");
                 const ready = await this.youtube.initialize();
                 
                 if (ready) {
+                    this.log("Sistema Listo.");
                     startScreen.style.display = 'none';
                     this.statusText.innerText = 'LISTO';
-                    this.statusSub.innerText = 'Escuchando para ayudarte';
+                    this.statusSub.innerText = 'Di "JULIO" seguido de tu orden';
                     
                     // Force a tiny speak to unlock TTS
-                    this.voice.speak('');
+                    this.voice.speak('Sistema listo. ¿Qué quieres escuchar?');
                     
                     // Start Listening Automatically
                     this.startListening();
                 } else {
-                    alert("Error en YouTube API. Reintenta.");
+                    this.log("YouTube API no respondió.");
+                    alert("Error al cargar música. Refresca la página.");
                 }
             } catch (e) {
-                console.error("Initiation Failed:", e);
-                alert("Necesito permiso de micrófono para funcionar.");
+                this.log(`Error: ${e.message}`);
+                alert("Sin micrófono no puedo oírte.");
             }
         };
     }
 
-    this.youtube.setOnErrorCallback(() => {
+    this.youtube.setOnErrorCallback((e) => {
+        this.log("Error de video. Saltando...");
         if (this.lastArtist) setTimeout(() => this.handleSkip(), 2000);
     });
 
     this.youtube.onEndCallback = () => {
-         console.log("Track ended, advancing...");
+         this.log("Canción terminada.");
          this.handleSkip();
     };
 
@@ -125,7 +143,7 @@ class JulioApp {
 
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
-        deferredPrompt = e;
+        window.deferredPrompt = e;
         if (installBtn) installBtn.style.display = 'block';
     });
 
@@ -139,10 +157,10 @@ class JulioApp {
 
         installBtn.addEventListener('click', async (e) => {
             e.preventDefault();
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                deferredPrompt = null;
+            if (window.deferredPrompt) {
+                window.deferredPrompt.prompt();
+                const { outcome } = await window.deferredPrompt.userChoice;
+                window.deferredPrompt = null;
                 if (outcome === 'accepted') installBtn.style.display = 'none';
             } else {
                 const ua = navigator.userAgent.toLowerCase();
@@ -153,11 +171,11 @@ class JulioApp {
                 title.innerText = "Pasos para Instalar:";
                 
                 if (isIOS) {
-                    inst.innerHTML = "1. Pulsa el botón <b>Compartir</b> (abajo en centro).<br>2. Elige <b>'Añadir a panta. inicio'</b>.";
+                    inst.innerHTML = "Pulsa <b>Compartir</b> y luego <b>'Añadir a pantalla de inicio'</b>.";
                 } else if (isSamsung) {
-                    inst.innerHTML = "1. Pulsa el <b>Menú (≡)</b> abajo.<br>2. Pulsa <b>'Añadir a panta. inicio'</b>.";
+                    inst.innerHTML = "Usa el menú <b>≡</b> y pulsa en <b>'Añadir a pantalla de inicio'</b>.";
                 } else {
-                    inst.innerHTML = "1. Pulsa los <b>tres puntos (⋮)</b> arriba.<br>2. Pulsa en <b>'Instalar aplicación'</b>.";
+                    inst.innerHTML = "Usa los <b>tres puntos (⋮)</b> y pulsa en <b>'Instalar aplicación'</b>.";
                 }
             }
         });
@@ -178,20 +196,19 @@ class JulioApp {
   async toggleVoice() {
     if (this.isRecording) {
         this.stopListening();
-        return;
+    } else {
+        this.startListening();
     }
-    this.startListening();
   }
 
   async startListening() {
     try {
-        console.log("Starting voice controller...");
         this.isRecording = true;
         this.micBtn.classList.add('active');
-        this.statusText.innerText = 'ESCUCHANDO';
+        this.statusText.innerText = 'OIGO CUALQUIER COSA';
         
         const tBox = document.getElementById('transcript-box');
-        if (tBox) tBox.innerText = 'ESCUCHANDO...';
+        if (tBox) tBox.innerText = 'Escuchando...';
 
         // NOTE: On some mobile devices, getUserMedia for visualizer conflicts with SpeechRecognition
         // We only start the visualizer if we're on a large enough screen
@@ -201,16 +218,7 @@ class JulioApp {
         } else {
             console.log("Visualizer skipped to save mic for SpeechRecognition on mobile.");
         }
-
-        let clearTimer;
         
-        // Voice Heartbeat: Forces the engine to stay awake in mobile
-        this.heartbeat = setInterval(() => {
-          if (this.isRecording && this.voice.recognition) {
-             console.log("Heartbeat: keeping voice alive...");
-          }
-        }, 3000);
-
         this.voice.listen((res) => {
             const { interim, final, error } = res;
             
@@ -221,46 +229,60 @@ class JulioApp {
             }
 
             const text = (final || interim).toLowerCase().trim();
-            if (tBox && text) {
-                tBox.innerText = text;
-            }
+            if (tBox && text) tBox.innerText = text;
 
-            // FASTER COMMAND PROCESSING (using interim for immediate action)
-            const triggerWords = ['julio', 'julio,', 'hulio', 'oye', 'asistente', 'hey'];
-            let foundTrigger = false;
-            let commandText = "";
+            // DETECT TRIGGER
+            const triggers = ['julio', 'hulio', 'oye', 'hey', 'asistente', 'asiste', 'pon', 'toca'];
+            let matchedTrigger = triggers.find(t => text.includes(t));
 
-            for (const word of triggerWords) {
-                if (text.includes(word)) {
-                    foundTrigger = true;
-                    commandText = text.split(word).pop().trim();
-                    break;
+            if (matchedTrigger) {
+                const parts = text.split(matchedTrigger);
+                let cmd = parts.pop().trim();
+                
+                // If it's a direct command like "pon"
+                if (matchedTrigger === 'pon' || matchedTrigger === 'toca') cmd = matchedTrigger + ' ' + cmd;
+
+                if (cmd.length > 2) {
+                    this.handleVoiceCommand(cmd, !!final);
                 }
-            }
-
-            // Also check for direct commands if it's already listening
-            if (!foundTrigger && text.length > 2) {
-                commandText = text;
-            }
-
-            if (commandText.length > 1) {
-                this.handleVoiceCommand(commandText, !!final);
             }
         });
     } catch (e) {
-        console.error("App Mic Start Fail:", e);
-        this.statusText.innerText = 'ERROR ACCESO';
+        this.log("Mic Denied");
         this.isRecording = false;
+    }
+  }
+
+  stopListening() {
+    this.isRecording = false;
+    this.micBtn.classList.remove('active');
+    this.statusText.innerText = 'VOZ APAGADA';
+    this.voice.stopListening();
+    this.stopVisualizer();
+  }
+
+  togglePlayback() {
+    const state = this.youtube.player?.getPlayerState();
+    if (state === YT.PlayerState.PLAYING) {
+        this.youtube.pause();
+        this.playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+        this.statusText.innerText = 'EN PAUSA';
+    } else {
+        this.youtube.resume();
+        this.playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+        this.statusText.innerText = 'REPRODUCIENDO';
     }
   }
 
   // Improved Command Handler with state tracking to avoid double-triggering
   async handleVoiceCommand(cmd, isFinal) {
     const now = Date.now();
-    if (this._lastCmdText === cmd && (now - (this._lastCmdTime || 0)) < 1500) return;
+    if (this._lastCmdText === cmd && (now - (this._lastCmdTime || 0)) < 2000) return;
+    
+    this.log(`Comando: ${cmd}`);
     
     // Commands to trigger ONCE even on interim
-    const instantCmds = /para|detén|detente|stop|silencio|siguiente|skip|saltar/;
+    const instantCmds = /para|deten|detente|stop|silencio|siguiente|skip|saltar/;
     
     if (cmd.match(instantCmds)) {
         this._lastCmdText = cmd;
@@ -278,37 +300,38 @@ class JulioApp {
   }
 
   async processAction(cmd) {
-    console.log("Processing Action:", cmd);
+    this.log(`Acción: ${cmd}`);
     
     // Command Dictionaries
-    const stopWords = /pausa|deten|para|detente|stop|silencio|calla|quieto|ya/;
+    const stopWords = /pausa|deten|para|detente|stop|silencio|ya|quieto|calla/;
     const nextWords = /siguiente|salta|otra|próxima|proxima|adelanta|adelante|cambia|cambiar|skip/;
     const playWords = /reanuda|continua|continúa|reproduce|dale|play|seguir|sigue|seguí/;
-    const volumeWords = /volumen|sonido|audio|más fuerte|mas fuerte|más alto|mas alto|más bajo|mas bajo/;
+    const volWords = /volumen|fuerte|alto|bajo|suave|sube|baja/;
 
     // 1. STOP Command
     if (cmd.match(stopWords)) {
         this.youtube.pause();
         this.playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
         this.statusText.innerText = 'PAUSADO';
-        await this.talk("Parando.");
+        await this.talk("Entendido.");
         return;
     } 
 
     // 2. VOLUME Commands
-    if (cmd.match(volumeWords) || cmd.includes('baja') || cmd.includes('sube')) {
+    if (cmd.match(volWords)) {
         let currentVol = this.youtube.player?.getVolume() || 100;
         
-        if (cmd.includes('sube') || cmd.includes('más') || cmd.includes('mas') || cmd.includes('fuerte') || cmd.includes('alto')) {
-            currentVol = Math.min(100, currentVol + 25);
+        if (cmd.match(/sube|más|mas|fuerte|alto/)) {
+            currentVol = Math.min(100, currentVol + 30);
             this.statusText.innerText = 'VOL +';
-        } else if (cmd.includes('baja') || cmd.includes('menos') || cmd.includes('suave')) {
-            currentVol = Math.max(0, currentVol - 25);
+        } else if (cmd.match(/baja|menos|suave|bajo/)) {
+            currentVol = Math.max(0, currentVol - 30);
             this.statusText.innerText = 'VOL -';
         }
 
         this.youtube.player?.setVolume(currentVol);
         if (this.volumeSlider) this.volumeSlider.value = currentVol;
+        this.log(`Vol: ${currentVol}`);
         return;
     }
     
@@ -334,50 +357,53 @@ class JulioApp {
   }
 
   async handleSearch(query) {
+    this.log(`Buscando: ${query}`);
     this.statusText.innerText = 'BUSCANDO...';
     try {
         const music = await this.youtube.searchMusic(query);
         if (music && !music._error) {
             this.playTrack(music);
         } else {
-            const err = music?._error || "No encontré eso.";
-            this.statusSub.innerText = err;
+            this.statusSub.innerText = "No encontré nada.";
+            this.log("Sin resultados.");
             await this.talk(`No encontré nada de ${query}`);
         }
     } catch (e) {
-        this.statusText.innerText = 'SIN RESPUESTA';
+        this.log("Fail Search");
+        this.statusText.innerText = 'ERROR API';
     }
   }
 
   async talk(text) {
     // Duck volume while speaking if music is playing
     const isPlaying = this.youtube.player?.getPlayerState() === YT.PlayerState.PLAYING;
-    if (isPlaying) this.youtube.player?.setVolume(15);
+    if (isPlaying) this.youtube.player?.setVolume(20);
     
     await this.voice.speak(text);
     
     if (isPlaying) {
         // Ensure we restore volume and stay playing
         this.youtube.player?.setVolume(100);
-        this.youtube.player?.playVideo();
     }
   }
 
   async handleSkip() {
+    this.log("Saltando...");
     this.statusText.innerText = 'CAMBIANDO...';
-    const artistsToTry = this.lastArtist || "Top Éxitos";
+    const artist = this.lastArtist || "Pop Hits 2024";
     
-    const results = await this.youtube.searchMusic(artistsToTry, true);
+    const results = await this.youtube.searchMusic(artist, true);
     if (results && results.length > 0) {
         const next = results[Math.floor(Math.random() * results.length)];
         this.playTrack(next);
     } else {
-        await this.talk("No hay más canciones similares.");
+        await this.talk("No hay más canciones.");
     }
   }
 
   playTrack(track) {
-    this.currentSongTitle = track.title.split('(')[0].split('[').shift().trim();
+    this.log(`Play: ${track.title}`);
+    this.currentSongTitle = track.title.substring(0, 30);
     this.lastArtist = track.artist;
     this.currentVideoId = track.id;
 
@@ -388,16 +414,17 @@ class JulioApp {
     this.youtube.updateMetadata(this.currentSongTitle, this.lastArtist, track.thumbnail);
 
     this.playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
-    this.statusText.innerText = 'REPRODUCIENDO';
-    this.talk(`Poniendo ${this.currentSongTitle}`);
+    this.statusText.innerText = 'EN MARCHA';
+    this.talk(`Ok. ${this.currentSongTitle}`);
   }
 
   startVisualizer(stream) {
+    this.log("Viz On");
     if (this.audioCtx) this.audioCtx.close().catch(()=>{});
     this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const source = this.audioCtx.createMediaStreamSource(stream);
     this.analyser = this.audioCtx.createAnalyser();
-    this.analyser.fftSize = 64;
+    this.analyser.fftSize = 32;
     source.connect(this.analyser);
     const data = new Uint8Array(this.analyser.frequencyBinCount);
     const bars = document.querySelectorAll('.b');
@@ -407,7 +434,7 @@ class JulioApp {
         requestAnimationFrame(draw);
         this.analyser.getByteFrequencyData(data);
         bars.forEach((b, i) => {
-            const h = Math.max(8, (data[i % data.length] / 255) * 45);
+            const h = (data[i % data.length] / 255) * 30 + 5;
             b.style.height = h + 'px';
         });
     };
@@ -416,11 +443,8 @@ class JulioApp {
 
   stopVisualizer() {
     if (this.audioCtx) this.audioCtx.close().catch(()=>{});
-    document.querySelectorAll('.b').forEach(b => b.style.height = '10px');
+    document.querySelectorAll('.b').forEach(b => b.style.height = '8px');
   }
 }
 
 window.onload = () => { window.app = new JulioApp(); };
-
-
-
