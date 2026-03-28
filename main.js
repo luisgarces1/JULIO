@@ -185,7 +185,11 @@ class JulioApp {
   setupEventListeners() {
     this.micBtn.onclick = (e) => { e.preventDefault(); this.toggleVoice(); };
     this.playPauseBtn.onclick = (e) => { e.preventDefault(); this.togglePlayback(); };
-    document.getElementById('next-btn').onclick = (e) => { e.preventDefault(); this.handleSkip(); };
+    document.getElementById('next-btn').onclick = (e) => { 
+        e.preventDefault(); 
+        this._manualControl = true;
+        this.handleSkip(); 
+    };
     document.getElementById('prev-btn').onclick = (e) => {
         e.preventDefault();
         this.youtube.player?.seekTo(0);
@@ -337,6 +341,7 @@ class JulioApp {
     
     // 3. NEXT Command
     if (cmd.match(nextWords)) {
+        this._manualControl = true;
         await this.handleSkip();
         return;
     } 
@@ -358,6 +363,8 @@ class JulioApp {
 
   async handleSearch(query) {
     this.log(`Buscando: ${query}`);
+    this._manualControl = true; 
+    this.currentSearchRoot = query; // SAVE THE GENRE/QUERY ROOT
     this.statusText.innerText = 'BUSCANDO...';
     try {
         const music = await this.youtube.searchMusic(query);
@@ -389,21 +396,30 @@ class JulioApp {
 
   async handleSkip() {
     this.log("Saltando...");
-    this.statusText.innerText = 'CAMBIANDO...';
-    const artist = this.lastArtist || "Pop Hits 2024";
+    this.statusText.innerText = 'BUSCANDO MÁS...';
     
-    const results = await this.youtube.searchMusic(artist, true);
-    if (results && results.length > 0) {
-        const next = results[Math.floor(Math.random() * results.length)];
-        this.playTrack(next);
-    } else {
-        await this.talk("No hay más canciones.");
+    // To maintain genre, we search for the original ROOT or the last artist + " mix"
+    const seed = this.currentSearchRoot || this.lastArtist || "Pop Latino";
+    this.log(`Buscando similares a: ${seed}`);
+    
+    try {
+        const results = await this.youtube.searchMusic(`${seed} mix`, true);
+        if (results && results.length > 0) {
+            // Filter out videos that we've already played or blacklisted (if we added a blacklist later)
+            const next = results[Math.floor(Math.random() * results.length)];
+            this.playTrack(next);
+        } else {
+            await this.talk("Ya no encuentro más canciones similares.");
+        }
+    } catch (e) {
+        this.log("Skip Error");
     }
   }
 
   playTrack(track) {
     this.log(`Play: ${track.title}`);
-    this.currentSongTitle = track.title.substring(0, 30);
+    // Limit title length for UI
+    this.currentSongTitle = track.title.substring(0, 40).split('(')[0].split('[')[0].trim();
     this.lastArtist = track.artist;
     this.currentVideoId = track.id;
 
@@ -415,7 +431,11 @@ class JulioApp {
 
     this.playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
     this.statusText.innerText = 'EN MARCHA';
-    this.talk(`Ok. ${this.currentSongTitle}`);
+    // Don't speak every time we skip automatically, only on manual search
+    if (this._manualControl) {
+        this.talk(`Ok. ${this.currentSongTitle}`);
+        this._manualControl = false;
+    }
   }
 
   startVisualizer(stream) {

@@ -13,6 +13,7 @@ export class YouTubeManager {
     this.onErrorCallback = null;
     this.onEndCallback = null;
     this.isPlayingManually = false;
+    this.blacklist = new Set(); 
   }
 
   setOnErrorCallback(callback) {
@@ -21,7 +22,6 @@ export class YouTubeManager {
 
   async initialize() {
     return new Promise((resolve) => {
-      // 5 second safety timeout
       const timeout = setTimeout(() => {
         console.warn("YouTube API init timed out.");
         this.isReady = false;
@@ -29,19 +29,17 @@ export class YouTubeManager {
       }, 5000);
 
       const createPlayer = () => {
-        if (this.isReady) return; // Prevent double init
+        if (this.isReady) return; 
         
         try {
             const playerVars = {
               autoplay: 1,
               mute: 0,
-              controls: 0, // Changed to 0 for custom controls/background playback
+              controls: 0, 
               modestbranding: 1,
               rel: 0,
               enablejsapi: 1,
-              showinfo: 0,
-              iv_load_policy: 3,
-              playsinline: 1, // Crucial for background/mobile
+              playsinline: 1, 
               origin: window.location.origin
             };
 
@@ -53,30 +51,26 @@ export class YouTubeManager {
                 onReady: (event) => {
                   clearTimeout(timeout);
                   this.isReady = true;
-                  console.log("YouTube Player is ready");
                   this.player.setVolume(100);
-                  this.setupMediaSession(); // Setup MediaSession API
+                  this.setupMediaSession(); 
                   resolve(true);
                 },
                 onStateChange: (event) => {
-                  this.syncMediaSession(event.data); // Sync playback state with MediaSession
-                  if (event.data === YT.PlayerState.PAUSED && this.isPlayingManually) {
-                     // Attempt to auto-resume if it was paused by system (backgrounding)
-                     setTimeout(() => { if(this.isPlayingManually) this.player.playVideo(); }, 100);
-                  }
-                  // Automatic next when song ends
+                  this.syncMediaSession(event.data); 
                   if (event.data === YT.PlayerState.ENDED) {
                     if (this.onEndCallback) this.onEndCallback();
                   }
                 },
                 onError: (err) => {
-                  console.error("YouTube Player Error:", err);
+                  if (this.currentVideoId) {
+                      console.warn("Blacklisting problematic video:", this.currentVideoId);
+                      this.blacklist.add(this.currentVideoId);
+                  }
                   if (this.onErrorCallback) this.onErrorCallback(err);
                 }
               }
             });
         } catch (e) {
-            console.error("Failed to create YT player:", e);
             clearTimeout(timeout);
             resolve(false);
         }
@@ -86,25 +80,14 @@ export class YouTubeManager {
         createPlayer();
       } else {
         window.onYouTubeIframeAPIReady = createPlayer;
-        
-        // Final fallback if global callback never fires
-        setTimeout(() => {
-            if (!this.isReady && window.YT && window.YT.Player) createPlayer();
-        }, 3000);
+        setTimeout(() => { if (!this.isReady && window.YT && window.YT.Player) createPlayer(); }, 3000);
       }
     });
   }
 
   warmUp() {
     if (this.player && this.isReady && this.player.playVideo) {
-      try {
-        this.player.playVideo();
-        setTimeout(() => {
-          if (this.player.getPlayerState() === YT.PlayerState.PLAYING) {
-              this.player.pauseVideo();
-          }
-        }, 100);
-      } catch(e) {}
+      try { this.player.playVideo(); setTimeout(() => this.player.pauseVideo(), 100); } catch(e) {}
     }
   }
 
@@ -112,7 +95,7 @@ export class YouTubeManager {
     if ('mediaSession' in navigator) {
       navigator.mediaSession.setActionHandler('play', () => this.resume());
       navigator.mediaSession.setActionHandler('pause', () => this.pause());
-      navigator.mediaSession.setActionHandler('previoustrack', () => { window.app?.youtube.player?.seekTo(0); });
+      navigator.mediaSession.setActionHandler('previoustrack', () => { this.player?.seekTo(0); });
       navigator.mediaSession.setActionHandler('nexttrack', () => { window.app?.handleSkip(); });
     }
   }
@@ -135,34 +118,31 @@ export class YouTubeManager {
   }
 
   async searchMusic(query, getAll = false) {
-    if (!this.apiKey || this.apiKey.includes('YOUR_API_KEY')) {
-      throw new Error("Missing YouTube API Key");
-    }
+    if (!this.apiKey) throw new Error("Missing API Key");
 
     try {
       let optimizedQuery = query.toLowerCase()
-        .replace('oficial', '')
-        .replace('official', '')
-        .replace('video', '')
-        .replace('vevo', '')
+        .replace(/oficial|official|video|vevo|lyrics/g, '')
         .trim();
       
       optimizedQuery += " audio lyrics";
 
-      const maxResults = getAll ? 15 : 1;
+      const maxResults = getAll ? 30 : 5; // Search more to skip blacklisted
       const response = await fetch(
         `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(optimizedQuery)}&type=video&videoEmbeddable=true&key=${this.apiKey}&maxResults=${maxResults}`
       );
       const data = await response.json();
       
-      if (data.error) {
-          console.error("YouTube API Internal Error:", data.error);
-          return { _error: data.error.message || "Error desconocido" };
-      }
+      if (data.error) return { _error: data.error.message };
 
       if (data.items && data.items.length > 0) {
+        // FILTER BLACKLISTED
+        const validItems = data.items.filter(item => !this.blacklist.has(item.id.videoId));
+        
+        if (validItems.length === 0) return null;
+
         if (getAll) {
-          return data.items.map(video => ({
+          return validItems.map(video => ({
             id: video.id.videoId,
             title: video.snippet.title,
             artist: video.snippet.channelTitle,
@@ -170,7 +150,7 @@ export class YouTubeManager {
           }));
         }
 
-        const video = data.items[0];
+        const video = validItems[0];
         return {
           id: video.id.videoId,
           title: video.snippet.title,
@@ -180,46 +160,25 @@ export class YouTubeManager {
       }
       return null;
     } catch (error) {
-      console.error("Search error:", error);
       return null;
     }
   }
 
   play(videoId) {
     if (this.player && this.isReady) {
-      console.log("Playing video:", videoId);
       this.currentVideoId = videoId;
-      this.isPlayingManually = true; // Mark as manually playing
+      this.isPlayingManually = true;
       try {
         this.player.loadVideoById({ videoId: videoId });
         this.player.playVideo();
         this.player.setVolume(100);
       } catch (e) {
-        console.error("Error loading video:", e);
         if (this.onErrorCallback) this.onErrorCallback(e);
       }
     }
   }
 
-  pause() {
-    this.isPlayingManually = false; // Mark as manually paused
-    if (this.player && this.isReady) this.player.pauseVideo();
-  }
-
-  resume() {
-    this.isPlayingManually = true; // Mark as manually playing
-    if (this.player && this.isReady) {
-      this.player.playVideo();
-      this.player.setVolume(100);
-    }
-  }
-
-  stop() {
-    this.isPlayingManually = false; // Mark as not playing
-    if (this.player && this.isReady) {
-        try {
-            this.player.stopVideo();
-        } catch(e) {}
-    }
-  }
+  pause() { this.isPlayingManually = false; if (this.player && this.isReady) this.player.pauseVideo(); }
+  resume() { this.isPlayingManually = true; if (this.player && this.isReady) { this.player.playVideo(); this.player.setVolume(100); } }
+  stop() { this.isPlayingManually = false; if (this.player && this.isReady) { try { this.player.stopVideo(); } catch(e) {} } }
 }
